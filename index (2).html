@@ -1,0 +1,1937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Seesaw Showdown: Moments and Centre of Gravity</title>
+  <style>
+/* style.css: how the page looks.
+   Colours are stored once as "variables" (the --names below) so you can
+   change the whole look by editing this block. */
+
+:root {
+  --ink: #1b1f4b;        /* main text */
+  --muted: #5a6488;
+  --paper: #f3f8ff;      /* page background */
+  --card: #ffffff;
+  --line: #d3dcf2;
+  --violet: #6a4cff;     /* main buttons */
+  --violet-dark: #4a32c9;
+  --pink: #ff4f8b;
+  --sun: #ffd23f;
+  --teal: #12a89a;
+  --green: #1f9d63;
+  --red: #d93a3a;
+  --radius: 18px;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+
+[hidden] { display: none !important; }   /* so buttons with the hidden attribute really hide */
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  font-family: "Avenir Next Rounded", "Nunito", "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 12% 8%, #e1d9ff 0, transparent 38%),
+    radial-gradient(circle at 92% 14%, #ffe3ef 0, transparent 34%),
+    var(--paper);
+  min-height: 100vh;
+  line-height: 1.45;
+  padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0);
+}
+
+main { max-width: 980px; margin: 0 auto; padding: 14px 14px 40px; }
+
+.screen { display: none; }
+.screen.active { display: block; }
+
+h1 { font-size: clamp(2rem, 6vw, 3.1rem); line-height: 1.05; margin: 0 0 6px; letter-spacing: -0.02em; }
+h2 { font-size: 1.25rem; margin: 0 0 8px; }
+p { margin: 0 0 10px; }
+
+/* ---------- hero blocks ---------- */
+.hero {
+  background: var(--card);
+  border: 2px solid var(--line);
+  border-radius: 26px;
+  padding: 22px 20px;
+  text-align: center;
+  margin-bottom: 16px;
+}
+.hero .tagline { color: var(--violet-dark); font-weight: 700; font-size: 1.1rem; }
+.privacy {
+  display: inline-block; max-width: 620px; font-size: 0.92rem; color: var(--muted);
+  background: #eef2ff; border-radius: 12px; padding: 8px 12px; margin-top: 4px;
+}
+
+/* ---------- buttons ---------- */
+.btn {
+  font: inherit; font-weight: 800; font-size: 1rem;
+  min-height: 48px; padding: 10px 18px; border-radius: 14px; border: 2px solid transparent;
+  cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  text-align: center; transition: transform 0.08s ease, background 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn:active:not(:disabled) { transform: scale(0.97); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn.primary { background: var(--violet); color: #fff; box-shadow: 0 4px 0 var(--violet-dark); }
+.btn.primary:hover:not(:disabled) { background: #7a5eff; }
+.btn.secondary { background: #fff; color: var(--violet-dark); border-color: var(--violet); }
+.btn.link { background: none; color: var(--muted); text-decoration: underline; min-height: 40px; }
+.btn.big { font-size: 1.15rem; min-height: 56px; padding: 12px 26px; }
+:focus-visible { outline: 3px solid var(--pink); outline-offset: 2px; }
+
+.btn-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; align-items: center; margin-top: 8px; }
+
+/* ---------- photo cards ---------- */
+.players { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.player-card {
+  background: var(--card); border: 2px solid var(--line); border-radius: var(--radius); padding: 14px;
+}
+.player-card:nth-child(1) { border-top: 8px solid #ff7a59; }
+.player-card:nth-child(2) { border-top: 8px solid #22b5a6; }
+.name-input {
+  width: 100%; font: inherit; font-size: 1rem; padding: 10px 12px; border-radius: 12px;
+  border: 2px solid var(--line); margin-bottom: 10px; color: var(--ink);
+}
+.cam-box {
+  position: relative; width: 100%; aspect-ratio: 1; max-width: 300px; margin: 0 auto 8px;
+  border-radius: 50%; overflow: hidden; background: #e8edfb; border: 4px solid var(--sun);
+}
+.cam-box video, .cam-box canvas.snap { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: none; }
+.cam-box video { transform: scaleX(-1); }                         /* mirror, like a selfie */
+.player-card[data-state="live"] video, .player-card[data-state="count"] video { display: block; }
+.player-card[data-state="done"] canvas.snap { display: block; }
+.player-card[data-state="live"] .placeholder, .player-card[data-state="count"] .placeholder, .player-card[data-state="done"] .placeholder { display: none; }
+.placeholder { position: absolute; inset: 0; display: grid; place-items: center; font-size: 4rem; }
+.countdown {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  font-size: 6rem; font-weight: 900; color: #fff; text-shadow: 0 3px 12px rgba(0, 0, 0, 0.6);
+}
+.cam-box.flash::after { content: ""; position: absolute; inset: 0; background: #fff; animation: flash 0.4s ease-out forwards; }
+@keyframes flash { from { opacity: 1; } to { opacity: 0; } }
+.cam-msg { min-height: 1.3em; font-size: 0.9rem; color: var(--red); text-align: center; }
+.player-card .btn-row { justify-content: center; }
+.player-card .btn { flex: 1 1 140px; font-size: 0.95rem; }
+
+/* ---------- menu ---------- */
+.duo { display: flex; justify-content: center; align-items: center; gap: 14px; margin-bottom: 8px; }
+.duo figure { margin: 0; text-align: center; }
+.duo img { width: clamp(84px, 22vw, 130px); aspect-ratio: 1; border-radius: 50%; object-fit: cover; border: 5px solid var(--sun); background: #e8edfb; }
+.duo figcaption { font-weight: 800; margin-top: 4px; }
+.vs { font-size: 2rem; font-weight: 900; color: var(--pink); }
+.modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.mode {
+  font: inherit; color: var(--ink); background: var(--card); border: 3px solid var(--line); border-radius: var(--radius);
+  padding: 20px 14px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center;
+  transition: transform 0.12s ease, border-color 0.12s ease;
+}
+.mode:hover { transform: translateY(-3px); border-color: var(--violet); }
+.mode .emoji { font-size: 2.6rem; }
+.mode b { font-size: 1.2rem; }
+.mode small { color: var(--muted); font-size: 0.92rem; }
+.mode:last-child { background: linear-gradient(135deg, #fff3b8, #ffd6e6); border-color: var(--pink); }
+
+/* ---------- game ---------- */
+.hud {
+  display: flex; align-items: center; gap: 10px; background: var(--card); border: 2px solid var(--line);
+  border-radius: 999px; padding: 6px 8px 6px 8px; margin-bottom: 10px; font-weight: 800;
+}
+.hud .spacer { flex: 1; }
+.hud .score { background: var(--sun); border-radius: 999px; padding: 4px 14px; }
+.icon-btn { font: inherit; font-size: 1.15rem; width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--line); background: #fff; cursor: pointer; }
+
+.stage-wrap { border-radius: 22px; overflow: hidden; border: 3px solid var(--ink); background: #bfe8ff; line-height: 0; }
+.stage-wrap canvas { display: block; width: 100%; }
+.stage-wrap.shake { animation: shake 0.45s ease; }
+@keyframes shake {
+  0%, 100% { transform: translateX(0); } 20% { transform: translateX(-10px); }
+  40% { transform: translateX(9px); } 60% { transform: translateX(-6px); } 80% { transform: translateX(4px); }
+}
+
+.panel { background: var(--card); border: 2px solid var(--line); border-radius: var(--radius); padding: 16px; margin-top: 12px; }
+.turn { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.turn img { width: 54px; height: 54px; border-radius: 50%; object-fit: cover; border: 3px solid var(--sun); background: #e8edfb; }
+.turn b { display: block; font-size: 1.1rem; }
+.turn span { color: var(--muted); font-size: 0.92rem; }
+.prompt { font-size: 1.12rem; }
+.talk { background: #fff6cf; border-left: 6px solid var(--sun); border-radius: 10px; padding: 8px 12px; font-size: 1rem; }
+
+.answer-row { display: flex; align-items: center; gap: 10px; margin: 12px 0 10px; }
+.answer-row input {
+  font: inherit; font-size: 1.4rem; font-weight: 800; width: 100%; max-width: 220px; padding: 10px 14px;
+  border: 3px solid var(--violet); border-radius: 14px; color: var(--ink);
+}
+.answer-row .unit { font-size: 1.3rem; font-weight: 800; color: var(--violet-dark); }
+.choices { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0 10px; }
+.choice {
+  font: inherit; font-weight: 800; font-size: 1.05rem; flex: 1 1 180px; min-height: 56px; padding: 10px 14px;
+  border-radius: 14px; border: 3px solid var(--line); background: #fff; color: var(--ink); cursor: pointer;
+}
+.choice[aria-pressed="true"] { border-color: var(--violet); background: #ece8ff; box-shadow: 0 0 0 3px #cfc6ff; }
+#controls .btn.big { margin-top: 4px; }
+
+.feedback { margin-top: 12px; }
+.fb { border-radius: 12px; padding: 10px 14px; margin-bottom: 8px; font-size: 1.02rem; }
+.fb.good { background: #dcf7e8; color: #0e5a36; }
+.fb.bad { background: #ffe1e1; color: #8e1c1c; }
+.fb.warn { background: #fff0d1; color: #7a4a00; }
+.fb.hint { background: #e8e4ff; color: #3a2a99; }
+.fb small { opacity: 0.8; }
+.explain { background: #f1f5ff; border-radius: 12px; padding: 10px 14px; font-size: 1.02rem; line-height: 1.7; }
+.end-row { margin-top: 12px; justify-content: space-between; align-items: center; }
+
+.formulas { margin-top: 14px; font-size: 0.98rem; }
+.formulas summary { cursor: pointer; font-weight: 800; padding: 8px 0; }
+.formulas ul { margin: 4px 0 0; padding-left: 20px; }
+.formulas li { margin-bottom: 4px; }
+
+/* ---------- results ---------- */
+.stats { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; margin: 12px 0; }
+.stats div { background: #f1f5ff; border-radius: 16px; padding: 10px 20px; min-width: 120px; }
+.stats b { display: block; font-size: 2rem; }
+.stats span { color: var(--muted); font-size: 0.92rem; }
+
+/* ---------- celebration layer ---------- */
+#fx { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 50; }
+#banner {
+  position: fixed; left: 50%; top: 42%; transform: translate(-50%, -50%) scale(0); z-index: 60; pointer-events: none;
+  max-width: 92vw; text-align: center; font-weight: 900; font-size: clamp(2rem, 8vw, 4.4rem); line-height: 1.05;
+  color: var(--pink); -webkit-text-stroke: 3px #fff; paint-order: stroke fill; text-shadow: 0 6px 0 var(--ink);
+  opacity: 0;
+}
+#banner.bad { color: #ff9f1c; font-size: clamp(1.6rem, 6vw, 3rem); }
+#banner.show { animation: banner 1.9s ease forwards; }
+@keyframes banner {
+  0% { transform: translate(-50%, -50%) scale(0) rotate(-8deg); opacity: 0; }
+  18% { transform: translate(-50%, -50%) scale(1.15) rotate(3deg); opacity: 1; }
+  30% { transform: translate(-50%, -50%) scale(1) rotate(-2deg); }
+  80% { transform: translate(-50%, -50%) scale(1) rotate(0); opacity: 1; }
+  100% { transform: translate(-50%, -60%) scale(1.05); opacity: 0; }
+}
+
+/* ---------- small screens ---------- */
+@media (max-width: 680px) {
+  .players { grid-template-columns: 1fr; }
+  .modes { grid-template-columns: 1fr; }
+  .cam-box { max-width: 220px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage-wrap.shake { animation: none; }
+  #banner.show { animation: none; opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+</style>
+</head>
+<body>
+<script>
+/* If anything goes wrong, show the message on the page instead of failing silently. */
+window.addEventListener('error', function (e) {
+  var b = document.getElementById('err-box');
+  if (!b) {
+    b = document.createElement('div'); b.id = 'err-box';
+    b.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;z-index:999;background:#fff3f3;color:#8e1c1c;border:2px solid #d93a3a;border-radius:12px;padding:10px 14px;font:14px/1.4 system-ui,sans-serif;max-height:40vh;overflow:auto';
+    b.innerHTML = '<b>Something went wrong.</b> Please screenshot this and send it to your teacher:<br>';
+    document.body.appendChild(b);
+  }
+  b.appendChild(document.createTextNode((e.message || 'error') + ' (' + (e.filename || '').split('/').pop() + ':' + e.lineno + ')'));
+  b.appendChild(document.createElement('br'));
+});
+</script>
+
+  <!-- Full-screen layer for balloons and confetti. It ignores touches. -->
+  <canvas id="fx" aria-hidden="true"></canvas>
+  <div id="banner" role="status" aria-live="polite"></div>
+
+  <main>
+
+    <!-- ============ 1. PHOTOS ============ -->
+    <section id="screen-setup" class="screen active">
+      <div class="hero">
+        <h1>Seesaw Showdown</h1>
+        <p class="tagline">Y10 Physics: moments and centre of gravity</p>
+        <p>Play in pairs. Take a photo of each person. Your faces become the characters, and the balloons.</p>
+        <p class="privacy">🔒 Photos stay on this device, inside this browser tab. Nothing is uploaded or saved, and they disappear when you close or refresh the page.</p>
+      </div>
+
+      <div class="players">
+        <div class="player-card" data-player="0" data-state="idle">
+          <h2>Player 1</h2>
+          <input class="name-input" type="text" maxlength="14" placeholder="Name or silly nickname" aria-label="Player 1 name">
+          <div class="cam-box">
+            <div class="placeholder">📷</div>
+            <video playsinline muted autoplay></video>
+            <canvas class="snap" width="256" height="256"></canvas>
+            <div class="countdown" aria-live="assertive"></div>
+          </div>
+          <p class="cam-msg" role="status"></p>
+          <div class="btn-row">
+            <button class="btn primary btn-main">📷 Start camera</button>
+            <label class="btn secondary">🖼️ Take / choose photo<input type="file" accept="image/*" capture="user" hidden></label>
+          </div>
+        </div>
+
+        <div class="player-card" data-player="1" data-state="idle">
+          <h2>Player 2</h2>
+          <input class="name-input" type="text" maxlength="14" placeholder="Name or silly nickname" aria-label="Player 2 name">
+          <div class="cam-box">
+            <div class="placeholder">📷</div>
+            <video playsinline muted autoplay></video>
+            <canvas class="snap" width="256" height="256"></canvas>
+            <div class="countdown" aria-live="assertive"></div>
+          </div>
+          <p class="cam-msg" role="status"></p>
+          <div class="btn-row">
+            <button class="btn primary btn-main">📷 Start camera</button>
+            <label class="btn secondary">🖼️ Take / choose photo<input type="file" accept="image/*" capture="user" hidden></label>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="btn-continue" class="btn primary big" disabled>Choose a game</button>
+        <button id="btn-cartoon" class="btn link">Skip photos and use cartoon faces</button>
+      </div>
+    </section>
+
+    <!-- ============ 2. CHOOSE A GAME ============ -->
+    <section id="screen-menu" class="screen">
+      <div class="hero">
+        <div class="duo">
+          <figure><img id="menu-face-0" alt="Player 1"><figcaption id="menu-name-0"></figcaption></figure>
+          <span class="vs">+</span>
+          <figure><img id="menu-face-1" alt="Player 2"><figcaption id="menu-name-1"></figcaption></figure>
+        </div>
+        <h1>Choose your showdown</h1>
+        <p>Take turns to answer. The other person is the checker: talk it through before you press Check.</p>
+      </div>
+      <div class="modes">
+        <button class="mode" data-mode="moments"><span class="emoji">⚖️</span><b>Moments</b><small>Spanners and seesaws, 8 rounds</small></button>
+        <button class="mode" data-mode="cog"><span class="emoji">🎯</span><b>Centre of gravity</b><small>Pin it down and topple-test a bus, 8 rounds</small></button>
+        <button class="mode" data-mode="both"><span class="emoji">🎉</span><b>The full showdown</b><small>Both topics, 10 rounds</small></button>
+      </div>
+      <div class="actions"><button id="btn-back-faces" class="btn link">Change photos</button></div>
+    </section>
+
+    <!-- ============ 3. THE GAME ============ -->
+    <section id="screen-game" class="screen">
+      <div class="hud">
+        <button id="btn-menu" class="icon-btn" aria-label="Back to menu">☰</button>
+        <span id="hud-round"></span>
+        <span class="spacer"></span>
+        <span id="hud-streak"></span>
+        <span id="hud-score" class="score"></span>
+        <button id="btn-mute" class="icon-btn" aria-label="Sound on">🔊</button>
+      </div>
+
+      <div id="stage-wrap" class="stage-wrap">
+        <canvas id="stage"></canvas>
+      </div>
+
+      <div class="panel">
+        <div class="turn">
+          <img id="turn-img" alt="">
+          <div><b id="turn-name"></b><span id="turn-sub"></span></div>
+        </div>
+        <h2 id="title"></h2>
+        <p id="prompt" class="prompt"></p>
+        <p class="talk"><b>Talk it over:</b> <span id="talk-text"></span></p>
+
+        <div id="controls"></div>
+        <div id="feedback" class="feedback" aria-live="polite"></div>
+
+        <div class="btn-row end-row">
+          <button id="btn-hint" class="btn secondary">💡 Hint (−25 points)</button>
+          <button id="btn-next" class="btn primary big" hidden>Next round ▶</button>
+        </div>
+
+        <details class="formulas">
+          <summary>📖 Formula help</summary>
+          <ul>
+            <li><b>moment (N m) = force (N) × perpendicular distance from the pivot (m)</b></li>
+            <li>Principle of moments: when balanced, <b>total clockwise moment = total anticlockwise moment</b></li>
+            <li>Weight acts through the <b>centre of gravity (CoG)</b></li>
+            <li>An object topples if the vertical line down from its CoG falls <b>outside its base</b></li>
+            <li>100 cm = 1 m. Convert before you multiply!</li>
+          </ul>
+        </details>
+      </div>
+    </section>
+
+    <!-- ============ 4. RESULTS ============ -->
+    <section id="screen-end" class="screen">
+      <div class="hero results">
+        <div class="duo">
+          <figure><img id="end-face-0" alt="Player 1"><figcaption id="end-name-0"></figcaption></figure>
+          <span class="vs">🏆</span>
+          <figure><img id="end-face-1" alt="Player 2"><figcaption id="end-name-1"></figcaption></figure>
+        </div>
+        <h1 id="end-title"></h1>
+        <div class="stats">
+          <div><b id="end-score"></b><span>points</span></div>
+          <div><b id="end-first"></b><span>right first time</span></div>
+          <div><b id="end-streak"></b><span>best streak</span></div>
+        </div>
+        <p>Tap a balloon to pop it!</p>
+      </div>
+      <div class="actions">
+        <button id="btn-again" class="btn primary big">Play again</button>
+        <button id="btn-other" class="btn secondary">Different game</button>
+        <button id="btn-newfaces" class="btn link">New photos</button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- All the game code is below, in this order: each part uses the parts above it. -->
+  <script>
+/* ===== faces.js ===== */
+/* faces.js
+   Takes the two photos (camera or file) and draws faces inside the game.
+   Photos are kept in memory only. They are never uploaded or saved. */
+
+const Faces = (() => {
+  const SIZE = 256;                                   // each face is stored as 256 x 256 pixels
+  const players = [
+    { name: '', canvas: null, url: '' },
+    { name: '', canvas: null, url: '' }
+  ];
+  const streams = [null, null];                       // live camera streams
+  const ui = [null, null];                            // per-card screen controllers
+  let onChange = () => {};
+
+  // ---------- making face images ----------
+  // Crops the middle square out of a video/photo. Mirrored so it matches the "selfie" preview.
+  function cropToCanvas(source, sw, sh, mirror) {
+    const c = document.createElement('canvas');
+    c.width = c.height = SIZE;
+    const g = c.getContext('2d');
+    const side = Math.min(sw, sh);
+    const sx = (sw - side) / 2, sy = (sh - side) / 2;
+    if (mirror) { g.translate(SIZE, 0); g.scale(-1, 1); }
+    g.drawImage(source, sx, sy, side, side, 0, 0, SIZE, SIZE);
+    return c;
+  }
+
+  function emojiFace(emoji, bg) {
+    const c = document.createElement('canvas');
+    c.width = c.height = SIZE;
+    const g = c.getContext('2d');
+    g.fillStyle = bg; g.fillRect(0, 0, SIZE, SIZE);
+    g.font = `${SIZE * 0.68}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(emoji, SIZE / 2, SIZE / 2 + SIZE * 0.05);
+    return c;
+  }
+
+  function setFace(i, canvas) {
+    players[i].canvas = canvas;
+    players[i].url = canvas.toDataURL('image/jpeg', 0.85);
+    if (ui[i]) ui[i].refresh();
+    onChange();
+  }
+
+  function stopStream(i) {
+    if (streams[i]) { streams[i].getTracks().forEach(t => t.stop()); streams[i] = null; }
+  }
+  function stopAll() { stopStream(0); stopStream(1); }
+
+  // ---------- the setup screen (two player cards) ----------
+  function initSetup(cb) {
+    onChange = cb;
+    document.querySelectorAll('.player-card').forEach(card => {
+      const i = Number(card.dataset.player);
+      const video = card.querySelector('video');
+      const snap = card.querySelector('canvas.snap');
+      const box = card.querySelector('.cam-box');
+      const cd = card.querySelector('.countdown');
+      const main = card.querySelector('.btn-main');
+      const file = card.querySelector('input[type=file]');
+      const msg = card.querySelector('.cam-msg');
+      const nameInput = card.querySelector('.name-input');
+      let state = 'idle';                              // idle | live | count | done
+
+      function setState(s) {
+        state = s;
+        card.dataset.state = s;
+        main.disabled = (s === 'count');
+        main.textContent = s === 'idle' ? '📷 Start camera'
+          : s === 'live' ? '📸 Take photo'
+          : s === 'count' ? 'Smile…'
+          : '🔄 Retake';
+      }
+
+      function refresh() {                             // draw the stored face into the preview
+        if (!players[i].canvas) return;
+        const g = snap.getContext('2d');
+        g.clearRect(0, 0, SIZE, SIZE);
+        g.drawImage(players[i].canvas, 0, 0);
+        setState('done');
+      }
+      ui[i] = { refresh };
+
+      async function startCamera() {
+        msg.textContent = '';
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          msg.textContent = 'The camera is not available here. Use “Take / choose photo” instead.';
+          return;
+        }
+        stopAll();
+        try {
+          streams[i] = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 720 } },
+            audio: false
+          });
+          video.srcObject = streams[i];
+          await video.play();
+          setState('live');
+        } catch (err) {
+          msg.textContent = `Could not open the camera (${err.name || 'error'}). Allow camera access in the browser, or use “Take / choose photo”.`;
+          setState(players[i].canvas ? 'done' : 'idle');
+        }
+      }
+
+      function countdownThenSnap() {
+        if (!video.videoWidth) { msg.textContent = 'Camera is still starting. Try again in a second.'; return; }
+        setState('count');
+        let n = 3;
+        cd.textContent = n;
+        const timer = setInterval(() => {
+          n--;
+          if (n > 0) { cd.textContent = n; return; }
+          clearInterval(timer);
+          cd.textContent = '';
+          const c = cropToCanvas(video, video.videoWidth, video.videoHeight, true);
+          stopStream(i);
+          box.classList.add('flash');
+          setTimeout(() => box.classList.remove('flash'), 400);
+          setFace(i, c);
+        }, 750);
+      }
+
+      main.addEventListener('click', () => {
+        if (state === 'live') countdownThenSnap();
+        else startCamera();                            // idle or done (retake)
+      });
+
+      file.addEventListener('change', () => {
+        const f = file.files && file.files[0];
+        if (!f) return;
+        stopStream(i);
+        const url = URL.createObjectURL(f);
+        const img = new Image();
+        img.onload = () => {
+          setFace(i, cropToCanvas(img, img.naturalWidth, img.naturalHeight, false));
+          URL.revokeObjectURL(url);
+        };
+        img.onerror = () => { msg.textContent = 'That file could not be read as a picture.'; URL.revokeObjectURL(url); };
+        img.src = url;
+        file.value = '';
+      });
+
+      nameInput.addEventListener('input', () => { players[i].name = nameInput.value; });
+      setState('idle');
+    });
+  }
+
+  // ---------- party hat + face drawing (used by the game and the balloons) ----------
+  function hat(ctx, r) {
+    ctx.save();
+    ctx.rotate(0.22);
+    ctx.translate(0, -r * 0.85);
+    ctx.beginPath(); ctx.moveTo(-r * 0.5, 0); ctx.lineTo(r * 0.5, 0); ctx.lineTo(0, -r * 1.05); ctx.closePath();
+    ctx.fillStyle = '#ff4f8b'; ctx.fill();
+    ctx.strokeStyle = '#ffd23f'; ctx.lineWidth = Math.max(2, r * 0.1);
+    ctx.beginPath(); ctx.moveTo(-r * 0.3, -r * 0.3); ctx.lineTo(r * 0.3, -r * 0.3); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-r * 0.16, -r * 0.62); ctx.lineTo(r * 0.16, -r * 0.62); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, -r * 1.07, r * 0.13, 0, Math.PI * 2); ctx.fillStyle = '#ffd23f'; ctx.fill();
+    ctx.restore();
+  }
+
+  function draw(ctx, i, x, y, r, o) {
+    o = o || {};
+    const c = players[i].canvas;
+    if (!c) return;
+    ctx.save();
+    ctx.translate(x, y);
+    if (o.rot) ctx.rotate(o.rot);
+    ctx.save();
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.clip();
+    ctx.drawImage(c, -r, -r, 2 * r, 2 * r);
+    ctx.restore();
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.lineWidth = Math.max(2, r * 0.09); ctx.strokeStyle = o.ring || '#fff'; ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, r + Math.max(1, r * 0.05), 0, Math.PI * 2);
+    ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(20,20,60,.3)'; ctx.stroke();
+    if (o.hat) hat(ctx, r);
+    ctx.restore();
+  }
+
+  function drawEmoji(ctx, emoji, x, y, r) {
+    ctx.save();
+    ctx.font = `${r * 1.7}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(emoji, x, y + r * 0.08);
+    ctx.restore();
+  }
+
+  // ---------- public ----------
+  return {
+    initSetup,
+    draw, drawEmoji,
+    name: i => players[i].name.trim() || `Player ${i + 1}`,
+    canvas: i => players[i].canvas,
+    url: i => players[i].url,
+    ready: () => !!(players[0].canvas && players[1].canvas),
+    useCartoons() {                                    // fallback if nobody wants to use the camera
+      if (!players[0].canvas) setFace(0, emojiFace('😎', '#ffd23f'));
+      if (!players[1].canvas) setFace(1, emojiFace('🤪', '#8fd3ff'));
+    },
+    stopAll
+  };
+})();
+
+  </script>
+  <script>
+/* ===== questions.js ===== */
+/* questions.js
+   Creates the physics questions and checks the answers.
+   Nothing in this file draws anything. It just returns plain objects
+   (data) that scenes.js draws and game.js shows on screen.
+
+   To change difficulty, edit the lists of numbers at the top of each
+   gen... function (for example the weights or distances). */
+
+const Q = (() => {
+  // ---------- small helpers ----------
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const rint = (a, b) => Math.floor(rand(a, b + 1));
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+  const r2 = x => Math.round(x * 100) / 100;
+  const fmt = x => String(r2(x));                       // 1.50 -> "1.5"
+  const isStep = (x, step) => Math.abs(x / step - Math.round(x / step)) < 1e-9;
+  const near = (a, b) => Math.abs(a - b) <= Math.max(0.011, Math.abs(b) * 0.01);  // 1% tolerance
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const nm = i => esc(Faces.name(i));
+
+  // Discussion prompts. They are shown on screen so partners talk first.
+  const TALK = {
+    moment: [
+      'Explain to your partner, in your own words, what a “moment” is.',
+      'Why does a longer spanner make a stubborn nut easier to turn?',
+      'What are the units of a moment, and where do they come from?'
+    ],
+    balance: [
+      'Before you type: if the seat moves closer to the pivot, does its moment get bigger or smaller? Why?',
+      'Explain to your partner what “balanced” means in terms of moments.',
+      'Who is heavier? So who should sit closer to the pivot?'
+    ],
+    direction: [
+      'Don’t calculate yet. Predict which side goes down and say why.',
+      'Which has the bigger moment: a heavy weight close in, or a light weight far out?',
+      'Convince your partner: what must be true for the seesaw to balance?'
+    ],
+    topple: [
+      'Where does the dashed line land compared with the wheels? What does that tell you?',
+      'How could the bus company make this bus more stable?',
+      'Why do double-decker buses keep heavy parts low down?'
+    ],
+    pin: [
+      'Where would you hang the shape from, and why does the CoG end up directly below the pivot?',
+      'Is there a line of symmetry? What does it tell you about the CoG?',
+      'Must the CoG always be inside the shape? Think of a ring or a boomerang.'
+    ]
+  };
+
+  // =====================================================
+  // 1. MOMENT = FORCE x DISTANCE  (spanner)
+  // =====================================================
+  function genMoment(pi, tough) {
+    const F = pick([10, 20, 25, 30, 40, 50, 60, 80, 100, 120, 150]);   // newtons
+    const d = pick([0.1, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.8, 1.0, 1.2, 1.5]); // metres
+    const M = r2(F * d);
+    const variant = tough ? pick(['M', 'M', 'F', 'd']) : 'M';       // which quantity is unknown
+    const useCm = variant !== 'd' && Math.random() < (tough ? 0.6 : 0.3);
+    const dText = useCm ? `${fmt(d * 100)} cm` : `${fmt(d)} m`;
+    const who = nm(pi);
+    let prompt, unit, correct, explain, hint;
+
+    if (variant === 'M') {
+      prompt = `<b>${who}</b> pushes down on the end of a spanner with a force of <b>${F} N</b>. The force acts <b>${dText}</b> from the centre of the nut. Calculate the <b>moment</b> (turning effect) about the nut.`;
+      unit = 'N m'; correct = M;
+      explain = `moment = force × distance = ${F} N × ${fmt(d)} m = <b>${fmt(M)} N m</b>` + (useCm ? ` (${fmt(d * 100)} cm = ${fmt(d)} m, so convert to metres first!)` : '');
+      hint = 'Moment = force × perpendicular distance. Make sure the distance is in <b>metres</b> (100 cm = 1 m).';
+    } else if (variant === 'F') {
+      prompt = `A nut needs a moment of <b>${fmt(M)} N m</b> to turn it. <b>${who}</b> pushes on a spanner at a distance of <b>${dText}</b> from the nut. What force must ${who} apply?`;
+      unit = 'N'; correct = F;
+      explain = `force = moment ÷ distance = ${fmt(M)} ÷ ${fmt(d)} = <b>${fmt(F)} N</b>` + (useCm ? ` (distance converted from ${fmt(d * 100)} cm to ${fmt(d)} m)` : '');
+      hint = 'Rearrange moment = force × distance to get force = moment ÷ distance. Use metres.';
+    } else {
+      prompt = `A nut needs a moment of <b>${fmt(M)} N m</b> to turn it. <b>${who}</b> can push with a force of <b>${F} N</b>. How far from the nut must the force be applied? Give your answer in metres.`;
+      unit = 'm'; correct = d;
+      explain = `distance = moment ÷ force = ${fmt(M)} ÷ ${F} = <b>${fmt(d)} m</b>`;
+      hint = 'Rearrange moment = force × distance to get distance = moment ÷ force.';
+    }
+
+    return {
+      type: 'moment', title: 'Spanner turn', prompt, talk: pick(TALK.moment),
+      inputKind: 'number', unit, correct, explain, hint,
+      check(v) {
+        if (near(v, correct)) return { ok: true };
+        if (useCm && (near(v, correct * 100) || near(v, correct / 100))) {
+          return { ok: false, msg: 'Check your units. Convert centimetres to metres first (100 cm = 1 m).' };
+        }
+        return { ok: false, msg: 'Not quite. Remember: moment = force × distance.' };
+      },
+      scene: { kind: 'spanner', pi, F, d, M, dText, unknown: variant }
+    };
+  }
+
+  // =====================================================
+  // 2. PRINCIPLE OF MOMENTS: make the seesaw balance
+  // =====================================================
+  function genBalance(pi, unknown) {
+    const wts = [200, 250, 300, 350, 400, 450, 500, 550, 600];
+    const dists = [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5];
+    let W1, d1, W2, d2, tries = 0;
+    while (tries++ < 5000) {
+      W1 = pick(wts); d1 = pick(dists);
+      if (unknown === 'd') {
+        W2 = pick(wts); d2 = W1 * d1 / W2;
+        if (W2 !== W1 && d2 >= 0.5 && d2 <= 3 && isStep(d2, 0.25) && Math.abs(d2 - d1) > 1e-9) break;
+      } else {
+        d2 = pick(dists); W2 = W1 * d1 / d2;
+        if (d2 !== d1 && W2 >= 100 && W2 <= 900 && isStep(W2, 10)) break;
+      }
+    }
+    if (tries >= 5000) { W1 = 400; d1 = 1.5; W2 = 300; d2 = 2; }       // safe fallback (both moments = 600)
+
+    const a = nm(pi), b = nm(1 - pi);
+    const Ml = W1 * d1;
+    const decoys = [0.5, 1, 1.5, 2, 2.5, 3].filter(c => Math.abs(c - d2) >= 0.75);
+    const loads = [
+      { side: 'L', d: d1, W: W1, face: pi },
+      { side: 'R', d: d2, W: W2, face: 1 - pi, unkD: unknown === 'd', unkW: unknown === 'F', decoyD: pick(decoys) }
+    ];
+
+    let prompt, unit, correct, explain, hint;
+    if (unknown === 'd') {
+      prompt = `<b>${a}</b> weighs <b>${W1} N</b> and sits <b>${fmt(d1)} m</b> to the left of the pivot. <b>${b}</b> weighs <b>${W2} N</b>. How far from the pivot must ${b} sit on the right so the seesaw balances?`;
+      unit = 'm'; correct = d2;
+      explain = `Balanced when anticlockwise moment = clockwise moment.<br>${W1} × ${fmt(d1)} = ${W2} × d<br>d = ${fmt(Ml)} ÷ ${W2} = <b>${fmt(d2)} m</b>`;
+      hint = `${a}’s moment = ${W1} × ${fmt(d1)} = <b>${fmt(Ml)} N m</b>. ${b}’s moment must be exactly the same.`;
+    } else {
+      prompt = `<b>${a}</b> weighs <b>${W1} N</b> and sits <b>${fmt(d1)} m</b> to the left of the pivot. <b>${b}</b> sits <b>${fmt(d2)} m</b> to the right. What must ${b}’s weight be for the seesaw to balance?`;
+      unit = 'N'; correct = W2;
+      explain = `Balanced when anticlockwise moment = clockwise moment.<br>${W1} × ${fmt(d1)} = W × ${fmt(d2)}<br>W = ${fmt(Ml)} ÷ ${fmt(d2)} = <b>${fmt(W2)} N</b>`;
+      hint = `${a}’s moment = ${W1} × ${fmt(d1)} = <b>${fmt(Ml)} N m</b>. ${b}’s moment must be exactly the same.`;
+    }
+
+    return {
+      type: 'balance', title: 'Balance the seesaw', prompt, talk: pick(TALK.balance),
+      inputKind: 'number', unit, correct, explain, hint,
+      check(v) {
+        if (near(v, correct)) return { ok: true };
+        const Mr = unknown === 'd' ? W2 * v : v * d2;
+        return {
+          ok: false,
+          msg: Mr > Ml
+            ? 'That makes the clockwise moment too big, so the right side drops.'
+            : 'That makes the clockwise moment too small, so the left side drops.'
+        };
+      },
+      scene: { kind: 'seesaw', mode: 'balance', held: true, pi, loads }
+    };
+  }
+
+  // =====================================================
+  // 3. WHICH WAY WILL IT TURN?  (compare total moments)
+  // =====================================================
+  function genDirection(pi, tough) {
+    const ws = [100, 150, 200, 250, 300, 350, 400, 450, 500, 600];
+    const ds = [0.5, 1, 1.5, 2, 2.5];
+    const wantBal = Math.random() < 0.25;
+    let best = null;
+
+    for (let t = 0; t < 6000 && !best; t++) {
+      const nL = tough ? pick([1, 2]) : 1, nR = tough ? pick([1, 2]) : 1;
+      const make = (side, n) => {
+        const arr = [];
+        for (let k = 0; k < n; k++) {
+          let d, guard = 0;
+          do { d = pick(ds); guard++; } while (arr.some(l => Math.abs(l.d - d) < 1) && guard < 30);
+          if (arr.some(l => Math.abs(l.d - d) < 1)) return null;
+          arr.push({ side, d, W: pick(ws) });
+        }
+        return arr;
+      };
+      const L = make('L', nL), R = make('R', nR);
+      if (!L || !R) continue;
+      const ML = L.reduce((s, l) => s + l.W * l.d, 0), MR = R.reduce((s, l) => s + l.W * l.d, 0);
+      const diff = ML - MR;
+      // a balanced case where both sides are identical is too easy to spot, so skip it
+      const mirror = L.length === 1 && R.length === 1 && L[0].W === R[0].W && L[0].d === R[0].d;
+      const ok = wantBal ? (Math.abs(diff) < 1e-9 && !mirror) : Math.abs(diff) >= Math.max(150, 0.12 * Math.max(ML, MR));
+      if (ok) best = { L, R, ML, MR, diff };
+    }
+    if (!best) {
+      const L = [{ side: 'L', d: 1.5, W: 400 }], R = [{ side: 'R', d: 2, W: 200 }];
+      best = { L, R, ML: 600, MR: 400, diff: 200 };
+    }
+
+    const { L, R, ML, MR, diff } = best;
+    // First load on each side is a person; extra loads are crates.
+    L[0].face = pi; R[0].face = 1 - pi;
+    [...L, ...R].forEach(l => { if (l.face == null) l.crate = true; });
+    const loads = [...L, ...R];
+
+    const correct = Math.abs(diff) < 1e-9 ? 'B' : diff > 0 ? 'L' : 'R';
+    const sumStr = arr => arr.map(l => `${l.W} × ${fmt(l.d)}`).join(' + ');
+    const verdict = { L: 'The <b>left side goes down</b> (anticlockwise moment is bigger).', R: 'The <b>right side goes down</b> (clockwise moment is bigger).', B: 'The moments are equal, so the seesaw <b>balances</b>.' }[correct];
+
+    return {
+      type: 'direction', title: 'Which way will it turn?',
+      prompt: 'Look at the weights and distances. <b>Which way will the seesaw turn when it is let go?</b> Compare the total anticlockwise moment (left) with the total clockwise moment (right).',
+      talk: pick(TALK.direction),
+      inputKind: 'choice',
+      choices: [
+        { id: 'L', label: '⬅️ Left side goes down' },
+        { id: 'B', label: '⚖️ It balances' },
+        { id: 'R', label: 'Right side goes down ➡️' }
+      ],
+      correct,
+      explain: `Anticlockwise (left): ${sumStr(L)} = <b>${fmt(ML)} N m</b><br>Clockwise (right): ${sumStr(R)} = <b>${fmt(MR)} N m</b><br>${verdict}`,
+      hint: 'Work out force × distance for every weight, then add up each side. The bigger total wins.',
+      check(v) {
+        return v === correct ? { ok: true } : { ok: false, msg: 'Not quite. Add up the moments on each side and compare them.' };
+      },
+      scene: { kind: 'seesaw', mode: 'direction', held: true, pi, loads }
+    };
+  }
+
+  // =====================================================
+  // 4. WILL IT TOPPLE?  (centre of gravity over the base)
+  // =====================================================
+  function genTopple(pi, tough) {
+    const margin = tough ? 0.08 : 0.15;
+    let d = null;
+    for (let i = 0; i < 800 && !d; i++) {
+      const high = Math.random() < 0.5;
+      const hg = r2(high ? rand(1.9, 2.5) : rand(1.1, 1.5));    // height of CoG above ground (m)
+      const w = r2(rand(1.8, 2.6));                              // distance between wheels (m)
+      const want = Math.random() < 0.5;
+      const ratio = want ? rand(1 + margin, 1.9) : rand(0.35, 1 - margin);
+      const th = Math.round(Math.atan(ratio * (w / 2) / hg) * 180 / Math.PI);
+      if (th < 6 || th > 42) continue;
+      const real = hg * Math.tan(th * Math.PI / 180) / (w / 2);  // >1 means the line lands outside the wheels
+      if (real > 1 - margin && real < 1 + margin) continue;
+      d = { high, hg, w, th, real, topples: real > 1 };
+    }
+    if (!d) d = { high: true, hg: 2.2, w: 2, th: 30, real: 1.27, topples: true };
+
+    const story = d.high
+      ? 'Everyone has rushed upstairs to the top deck.'
+      : 'The passengers are downstairs and the heavy luggage is in the hold.';
+    const correct = d.topples ? 'T' : 'S';
+
+    return {
+      type: 'topple', title: 'Topple test',
+      prompt: `${story} The bus is parked on a slope of <b>${d.th}°</b>. The dashed line shows the direction of the bus’s weight, straight down from the <b>centre of gravity</b> (CoG). Will the bus <b>topple over</b>?`,
+      talk: pick(TALK.topple),
+      inputKind: 'choice',
+      choices: [
+        { id: 'S', label: '🚌 Stays upright' },
+        { id: 'T', label: '💥 Topples over' }
+      ],
+      correct,
+      explain: d.topples
+        ? 'The dashed line from the CoG lands <b>outside the wheels</b> (the base). The weight now gives a turning moment about the downhill wheel that rolls the bus over, so it <b>topples</b>.<br><i>To be more stable: lower the CoG or widen the base.</i>'
+        : 'The dashed line from the CoG lands <b>inside the wheels</b> (the base). The weight’s moment about the downhill wheel pulls the bus back down, so it <b>stays upright</b>.<br><i>To be even more stable: lower the CoG or widen the base.</i>',
+      hint: 'Look at where the dashed line touches the slope. Is it between the wheels (the base) or outside them?',
+      check(v) {
+        return v === correct ? { ok: true } : { ok: false, msg: 'Not quite. Check where the dashed line lands compared with the wheels.' };
+      },
+      scene: { kind: 'topple', pi, hg: d.hg, w: d.w, th: d.th, high: d.high, topples: d.topples }
+    };
+  }
+
+  // =====================================================
+  // 5. FIND THE CENTRE OF GRAVITY (drag the pin)
+  // =====================================================
+  const circlePts = Array.from({ length: 64 }, (_, k) => [0.8 + 0.8 * Math.cos(2 * Math.PI * k / 64), 0.8 + 0.8 * Math.sin(2 * Math.PI * k / 64)]);
+  const SHAPES = {
+    rect: {
+      label: 'rectangle', pts: [[0, 0], [1.8, 0], [1.8, 1.1], [0, 1.1]], lines: 'diag',
+      why: 'The centre of the rectangle, where the diagonals (and the lines of symmetry) cross.'
+    },
+    circle: {
+      label: 'disc', pts: circlePts, lines: [[[0, 0.8], [1.6, 0.8]], [[0.8, 0], [0.8, 1.6]]],
+      why: 'The centre of the disc, where the lines of symmetry cross.'
+    },
+    triangle: {
+      label: 'triangle', pts: [[0, 1.3], [1.9, 1.3], [0.95, 0]], lines: 'med',
+      why: 'Where the three medians meet (lines from each corner to the middle of the opposite side). That is one third of the way up from the base.'
+    },
+    rightTri: {
+      label: 'right-angled triangle', pts: [[0, 0], [0, 1.4], [1.8, 1.4]], lines: 'med',
+      why: 'Where the three medians meet: one third of the way along from each of the two sides that make the right angle.'
+    },
+    parallelogram: {
+      label: 'parallelogram', pts: [[0.6, 0], [2.1, 0], [1.5, 1.1], [0, 1.1]], lines: 'diag',
+      why: 'Where the two diagonals cross.'
+    },
+    L: {
+      label: 'L-shape', pts: [[0, 0], [0.7, 0], [0.7, 1.0], [1.7, 1.0], [1.7, 1.7], [0, 1.7]], lines: [[[0, 1.7], [1.0, 0.7]]],
+      why: 'It lies on the line of symmetry, nearer the corner where most of the material is.'
+    },
+    T: {
+      label: 'T-shape', pts: [[0, 0], [1.8, 0], [1.8, 0.6], [1.2, 0.6], [1.2, 1.8], [0.6, 1.8], [0.6, 0.6], [0, 0.6]], lines: [[[0.9, 0], [0.9, 1.8]]],
+      why: 'It lies on the vertical line of symmetry, but nearer the top than the middle, because the wide top bar has more material than the stem.'
+    },
+    house: {
+      label: 'house shape', pts: [[0, 0.8], [0.9, 0], [1.8, 0.8], [1.8, 1.8], [0, 1.8]], lines: [[[0.9, 0], [0.9, 1.8]]],
+      why: 'It lies on the vertical line of symmetry, nearer the square part than the roof because the square has more material.'
+    }
+  };
+  const TIERS = { easy: ['rect', 'circle'], mid: ['triangle', 'rightTri', 'parallelogram'], hard: ['L', 'T', 'house'] };
+
+  function centroid(pts) {
+    let A = 0, cx = 0, cy = 0;
+    for (let i = 0; i < pts.length; i++) {
+      const [x0, y0] = pts[i], [x1, y1] = pts[(i + 1) % pts.length];
+      const cr = x0 * y1 - x1 * y0;
+      A += cr; cx += (x0 + x1) * cr; cy += (y0 + y1) * cr;
+    }
+    A /= 2;
+    return { x: cx / (6 * A), y: cy / (6 * A) };
+  }
+  function hintLines(sh) {
+    const p = sh.pts;
+    if (sh.lines === 'med') {
+      const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      return [[p[0], mid(p[1], p[2])], [p[1], mid(p[0], p[2])], [p[2], mid(p[0], p[1])]];
+    }
+    if (sh.lines === 'diag') return [[p[0], p[2]], [p[1], p[3]]];
+    return sh.lines;
+  }
+
+  function genPin(pi, tier, used) {
+    const pool = TIERS[tier] || TIERS.easy;
+    const fresh = pool.filter(k => !used.includes(k));
+    const key = pick(fresh.length ? fresh : pool);
+    used.push(key);
+    const sh = SHAPES[key];
+    const c = centroid(sh.pts);
+    const tol = tier === 'hard' ? 0.15 : tier === 'mid' ? 0.17 : 0.2;   // in shape units
+
+    return {
+      type: 'pin', title: 'Find the centre of gravity',
+      prompt: `Drag the pin to where you think the <b>centre of gravity</b> of this <b>${sh.label}</b> is. Imagine it is a flat sheet of card of the same thickness all over.`,
+      talk: pick(TALK.pin),
+      inputKind: 'pin', correct: c,
+      explain: `${sh.why}<br><i>The weight of the whole shape acts through this one point.</i>`,
+      hint: key === 'rect' || key === 'circle' || key === 'parallelogram'
+        ? 'Use the lines of symmetry (or diagonals). The CoG is where they cross.'
+        : key === 'triangle' || key === 'rightTri'
+          ? 'Draw a line from each corner to the middle of the opposite side. They all cross at the CoG.'
+          : 'The dashed line is a line of symmetry. The CoG must be somewhere on it. Which way is most of the material?',
+      check(v) {
+        const dx = c.x - v.x, dy = c.y - v.y;
+        if (Math.hypot(dx, dy) <= tol) return { ok: true };
+        const bits = [];
+        if (Math.abs(dy) > tol * 0.5) bits.push(dy > 0 ? 'lower' : 'higher');
+        if (Math.abs(dx) > tol * 0.5) bits.push(dx > 0 ? 'to the right' : 'to the left');
+        return { ok: false, msg: `Not quite. Try a bit ${bits.join(' and ')}.` };
+      },
+      scene: { kind: 'pin', pi, key, pts: sh.pts, centroid: c, tol, lines: hintLines(sh) }
+    };
+  }
+
+  // ---------- public ----------
+  function make(spec, pi, used) {
+    switch (spec.type) {
+      case 'moment': return genMoment(pi, spec.tough);
+      case 'balance': return genBalance(pi, spec.unknown);
+      case 'direction': return genDirection(pi, spec.tough);
+      case 'topple': return genTopple(pi, spec.tough);
+      case 'pin': return genPin(pi, spec.tier, used);
+    }
+    throw new Error('Unknown question type: ' + spec.type);
+  }
+
+  return { make };
+})();
+
+  </script>
+  <script>
+/* ===== scenes.js ===== */
+/* scenes.js
+   Draws the picture for each question onto the main <canvas>.
+   Every scene is an object with:
+     update(dt)         - move things (dt = seconds since last frame)
+     draw(ctx)          - paint the picture
+     pointer(kind,x,y)  - touch/mouse input (only the pin scene uses it)
+     onWrong(answer)    - called after a wrong try
+     onReveal(ok)       - called when the round ends (show the true answer)
+     onHint()           - called when the hint button is pressed
+   The drawing area is always 960 units wide. game.js scales it to fit the screen. */
+
+const Scenes = (() => {
+  const VW = 960;
+  let VH = 528, U = 0.5;                              // VH = drawing height, U = screen pixels per drawing unit
+  const PX = 130;                                     // seesaw: drawing units per metre
+  const fmt = x => String(Math.round(x * 100) / 100);
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  const ease = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+  const noop = () => {};
+
+  // ---------- drawing helpers ----------
+  function setFont(ctx, size, weight) {                // never smaller than ~11 screen pixels
+    ctx.font = `${weight || '700'} ${Math.max(size, 11 / U)}px "Trebuchet MS","Avenir Next",system-ui,sans-serif`;
+  }
+  function rr(ctx, x, y, w, h, r) {                    // rounded rectangle path
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+  function pill(ctx, text, x, y, o) {                  // label with a rounded background
+    o = o || {};
+    const size = o.size || 18;
+    setFont(ctx, size);
+    const w = ctx.measureText(text).width + 18, h = Math.max(size, 11 / U) + 12;
+    rr(ctx, x - w / 2, y - h / 2, w, h, h / 2);
+    ctx.fillStyle = o.bg || 'rgba(255,255,255,.94)'; ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = o.border || '#c9d3ec'; ctx.stroke();
+    ctx.fillStyle = o.fg || '#1b1f4b'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(text, x, y + 1);
+  }
+  function sky(ctx, groundY) {
+    const g = ctx.createLinearGradient(0, 0, 0, VH);
+    g.addColorStop(0, '#a9defa'); g.addColorStop(1, '#e6f6ff');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, VW, VH);
+    if (groundY != null) {
+      ctx.fillStyle = '#7ccf6a'; ctx.fillRect(0, groundY, VW, VH - groundY);
+      ctx.fillStyle = '#58b24a'; ctx.fillRect(0, groundY, VW, 8);
+    }
+  }
+  function arrow(ctx, x0, y0, x1, y1, color, width) {
+    const a = Math.atan2(y1 - y0, x1 - x0), h = 16 + width;
+    ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = width; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1 - Math.cos(a) * h * 0.6, y1 - Math.sin(a) * h * 0.6); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x1, y1);
+    ctx.lineTo(x1 - Math.cos(a - 0.45) * h, y1 - Math.sin(a - 0.45) * h);
+    ctx.lineTo(x1 - Math.cos(a + 0.45) * h, y1 - Math.sin(a + 0.45) * h);
+    ctx.closePath(); ctx.fill();
+  }
+  function wood(ctx, x, y, w, h) {
+    const g = ctx.createLinearGradient(0, y, 0, y + h);
+    g.addColorStop(0, '#e6b673'); g.addColorStop(1, '#b8863f');
+    ctx.fillStyle = g; rr(ctx, x, y, w, h, 4); ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = '#7a5524'; ctx.stroke();
+  }
+
+  // =====================================================
+  // SPANNER  (moment = force x distance)
+  // =====================================================
+  function makeSpanner(p) {
+    return {
+      kind: 'spanner', p, rev: false, ok: false, spin: 0, spinning: false, t: 0,
+      update(dt) {
+        this.t += dt;
+        if (this.spinning) { this.spin += dt / 1.4; if (this.spin >= 1) { this.spin = 1; this.spinning = false; } }
+      },
+      pointer: noop, onWrong: noop, onHint: noop,
+      onReveal(ok) { this.rev = true; this.ok = ok; if (ok) { this.spinning = true; this.spin = 0; } },
+      draw(ctx) {
+        const nx = 170, ny = VH * 0.58;
+        const len = 120 + Math.min(1.5, p.d) / 1.5 * 520;      // not to scale!
+        const known = k => this.rev || p.unknown !== k;
+        const ang = this.spin >= 1 ? 0 : ease(this.spin) * Math.PI * 2;
+
+        const bg = ctx.createLinearGradient(0, 0, 0, VH);
+        bg.addColorStop(0, '#dbe7f5'); bg.addColorStop(1, '#f4f8fc');
+        ctx.fillStyle = bg; ctx.fillRect(0, 0, VW, VH);
+        ctx.fillStyle = '#b48a56'; ctx.fillRect(0, VH * 0.88, VW, VH * 0.12);        // workbench
+
+        ctx.save();
+        ctx.translate(nx, ny); ctx.rotate(ang);
+        const metal = ctx.createLinearGradient(0, -20, 0, 20);
+        metal.addColorStop(0, '#f1f4f6'); metal.addColorStop(1, '#8fa3ad');
+        ctx.fillStyle = metal; ctx.strokeStyle = '#4f6772'; ctx.lineWidth = 2.5;
+        rr(ctx, 0, -17, len + 24, 34, 17); ctx.fill(); ctx.stroke();                 // handle
+        ctx.beginPath(); ctx.arc(0, 0, 56, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); // head
+        ctx.beginPath();                                                              // nut (hexagon)
+        for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; ctx.lineTo(Math.cos(a) * 32, Math.sin(a) * 32); }
+        ctx.closePath(); ctx.fillStyle = '#37474f'; ctx.fill();
+        ctx.beginPath(); ctx.arc(0, 0, 9, 0, Math.PI * 2); ctx.fillStyle = '#cfd8dc'; ctx.fill();
+
+        // the push
+        arrow(ctx, len, -118, len, -22, '#e53935', 7);
+        Faces.draw(ctx, p.pi, len, -165, 40, { ring: '#ffd23f' });
+        pill(ctx, `F = ${known('F') ? fmt(p.F) : '?'} N`, len + 74, -92, { fg: '#b71c1c', border: '#e53935' });
+
+        // distance
+        const yy = 62;
+        ctx.strokeStyle = '#1b1f4b'; ctx.lineWidth = 2.5; ctx.lineCap = 'butt';
+        ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(len, yy);
+        ctx.moveTo(0, yy - 9); ctx.lineTo(0, yy + 9); ctx.moveTo(len, yy - 9); ctx.lineTo(len, yy + 9); ctx.stroke();
+        pill(ctx, `distance = ${known('d') ? p.dText : '?'}`, len / 2, yy + 26);
+
+        // turning effect
+        ctx.strokeStyle = '#6a4cff'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.arc(0, 0, 84, -2.7, -0.55); ctx.stroke();
+        const E = [84 * Math.cos(-0.55), 84 * Math.sin(-0.55)], tg = [-Math.sin(-0.55), Math.cos(-0.55)], nn = [Math.cos(-0.55), Math.sin(-0.55)];
+        ctx.fillStyle = '#6a4cff'; ctx.beginPath();
+        ctx.moveTo(E[0] + tg[0] * 22, E[1] + tg[1] * 22);
+        ctx.lineTo(E[0] + nn[0] * 12, E[1] + nn[1] * 12); ctx.lineTo(E[0] - nn[0] * 12, E[1] - nn[1] * 12);
+        ctx.closePath(); ctx.fill();
+        pill(ctx, `moment = ${known('M') ? fmt(p.M) + ' N m' : '?'}`, 6, -122, { fg: '#3d2bb5', border: '#6a4cff' });
+        ctx.restore();
+
+        setFont(ctx, 14, '600'); ctx.fillStyle = '#5a6488'; ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic';
+        ctx.fillText('(diagram not to scale)', VW - 16, VH - 14);
+      }
+    };
+  }
+
+  // =====================================================
+  // SEESAW  (balance + direction questions)
+  // =====================================================
+  function tiltOf(loads) {                              // radians: negative = left side down
+    let ML = 0, MR = 0;
+    loads.forEach(l => { const m = (l.W == null ? 0 : l.W) * l.td; if (l.side === 'L') ML += m; else MR += m; });
+    if (Math.abs(ML - MR) < 1e-6 || ML + MR === 0) return 0;
+    return -clamp((ML - MR) / (ML + MR) * 60, -10, 10) * Math.PI / 180;
+  }
+
+  function drawLoad(ctx, l) {
+    const x = (l.side === 'L' ? -1 : 1) * l.d * PX;
+    const plank = -14;
+    let top;
+    if (l.face != null) {
+      const r = 20 + 16 * Math.sqrt(Math.min(l.sizeW, 900) / 500);
+      const col = l.face === 0 ? '#ff7a59' : '#22b5a6';
+      rr(ctx, x - r * 0.62, plank - r * 0.95, r * 1.24, r * 0.95, r * 0.3);
+      ctx.fillStyle = col; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(20,20,60,.35)'; ctx.stroke();
+      Faces.draw(ctx, l.face, x, plank - r * 0.95 - r * 0.72, r);
+      top = plank - r * 0.95 - r * 0.72 - r - 6;
+      pill(ctx, `${Faces.name(l.face)}: ${l.wLabel}`, x, top - 14, { size: 17 });
+    } else {
+      const s = 30 + 22 * Math.sqrt(l.sizeW / 300);
+      ctx.fillStyle = '#c8923f'; ctx.fillRect(x - s / 2, plank - s, s, s);
+      ctx.lineWidth = 2.5; ctx.strokeStyle = '#6d4a17'; ctx.strokeRect(x - s / 2, plank - s, s, s);
+      ctx.beginPath(); ctx.moveTo(x - s / 2, plank - s); ctx.lineTo(x + s / 2, plank); ctx.moveTo(x + s / 2, plank - s); ctx.lineTo(x - s / 2, plank); ctx.stroke();
+      top = plank - s;
+      pill(ctx, l.wLabel, x, top - 14, { size: 17 });
+    }
+    // distance marker under the plank
+    const yy = 40 + 26 * l.order, col = l.side === 'L' ? '#e8553a' : '#0f8f84';
+    ctx.strokeStyle = col; ctx.lineWidth = 2.5; ctx.lineCap = 'butt';
+    ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(x, yy);
+    ctx.moveTo(0, yy - 7); ctx.lineTo(0, yy + 7); ctx.moveTo(x, yy - 7); ctx.lineTo(x, yy + 7); ctx.stroke();
+    ctx.setLineDash([3, 5]); ctx.beginPath(); ctx.moveTo(x, 4); ctx.lineTo(x, yy - 7); ctx.stroke(); ctx.setLineDash([]);
+    setFont(ctx, 16); ctx.fillStyle = col; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillText(l.dLabel, x / 2, yy + 8);
+  }
+
+  function makeSeesaw(p) {
+    const loads = p.loads.map(l => ({
+      side: l.side, face: l.face, crate: !!l.crate,
+      trueD: l.d, trueW: l.W, unkD: !!l.unkD, unkW: !!l.unkW,
+      d: l.unkD ? l.decoyD : l.d, td: l.unkD ? l.decoyD : l.d,
+      W: l.unkW ? null : l.W, sizeW: l.unkW ? 350 : l.W,
+      wLabel: l.unkW ? '? N' : `${fmt(l.W)} N`,
+      dLabel: l.unkD ? 'd = ?' : `d = ${fmt(l.d)} m`,
+      order: 0
+    }));
+    ['L', 'R'].forEach(side => loads.filter(l => l.side === side).forEach((l, i) => { l.order = i; }));
+    const sumStr = side => loads.filter(l => l.side === side).map(l => `${fmt(l.trueW)}×${fmt(l.trueD)}`).join(' + ');
+    const sumVal = side => loads.filter(l => l.side === side).reduce((s, l) => s + l.trueW * l.trueD, 0);
+
+    return {
+      kind: 'seesaw', p, loads, ang: 0, vel: 0, tang: 0, released: !p.held, showMoments: false, ok: false, t: 0,
+      pointer: noop, onHint: noop,
+      update(dt) {
+        this.t += dt;
+        // springy plank so it wobbles into place
+        this.vel += ((this.tang - this.ang) * 60 - this.vel * 6) * dt;
+        this.ang += this.vel * dt;
+        const k = 1 - Math.exp(-dt * 8);
+        this.loads.forEach(l => { l.d += (l.td - l.d) * k; });
+      },
+      onWrong(v) {
+        if (p.mode !== 'balance') return;               // direction rounds don't show a result until the end
+        this.released = true;
+        this.loads.forEach(l => {
+          if (l.unkD) { l.td = clamp(v, 0.05, 3.1); l.dLabel = `d = ${fmt(v)} m (your answer)`; }
+          if (l.unkW) { l.W = clamp(v, 1, 1500); l.sizeW = clamp(v, 50, 900); l.wLabel = `${fmt(v)} N (your answer)`; }
+        });
+        this.tang = tiltOf(this.loads);
+      },
+      onReveal(ok) {
+        this.released = true; this.showMoments = true; this.ok = ok;
+        this.loads.forEach(l => {
+          l.td = l.trueD; l.W = l.trueW; l.sizeW = l.trueW;
+          l.wLabel = `${fmt(l.trueW)} N`; l.dLabel = `d = ${fmt(l.trueD)} m`;
+        });
+        this.tang = tiltOf(this.loads);
+      },
+      draw(ctx) {
+        const cx = VW / 2, cy = VH * 0.62, gy = cy + 86;
+        sky(ctx, gy);
+
+        // pivot (fulcrum)
+        ctx.fillStyle = '#8d6e63'; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx - 52, gy); ctx.lineTo(cx + 52, gy); ctx.closePath(); ctx.fill();
+        // blocks that hold the plank level until it is released
+        if (!this.released) { ctx.fillStyle = '#9aa3b2'; ctx.fillRect(cx - 3 * PX - 14, cy, 28, 86); ctx.fillRect(cx + 3 * PX - 14, cy, 28, 86); }
+
+        ctx.save();
+        ctx.translate(cx, cy); ctx.rotate(this.ang);
+        wood(ctx, -3.2 * PX, -14, 6.4 * PX, 14);
+        ctx.strokeStyle = '#5d4020'; ctx.fillStyle = '#5d4020'; ctx.lineWidth = 1.5;
+        setFont(ctx, 14, '600'); ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+        for (let m = -3; m <= 3; m += 0.5) {
+          const x = m * PX, whole = (m % 1 === 0);
+          ctx.beginPath(); ctx.moveTo(x, -14); ctx.lineTo(x, whole ? -6 : -10); ctx.stroke();
+          if (whole && m !== 0) ctx.fillText(String(Math.abs(m)), x, 3);
+        }
+        this.loads.forEach(l => drawLoad(ctx, l));
+        ctx.restore();
+
+        ctx.beginPath(); ctx.arc(cx, cy, 8, 0, Math.PI * 2); ctx.fillStyle = '#d32f2f'; ctx.fill();
+        ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke();
+        pill(ctx, 'pivot', cx, gy + 22, { size: 15 });
+
+        if (this.showMoments) {
+          const a = sumVal('L'), b = sumVal('R');
+          pill(ctx, `↺ anticlockwise ${sumStr('L')} = ${fmt(a)} N m`, VW * 0.27, 28, { size: 16, fg: '#b0371f', border: '#e8553a' });
+          pill(ctx, `↻ clockwise ${sumStr('R')} = ${fmt(b)} N m`, VW * 0.73, 28, { size: 16, fg: '#0b6b62', border: '#0f8f84' });
+          if (Math.abs(a - b) < 1e-9) pill(ctx, '⚖️ BALANCED', cx, 70, { size: 22, fg: '#fff', bg: '#6a4cff', border: '#fff' });
+        } else {
+          pill(ctx, 'distances are measured from the pivot, in metres', cx, 28, { size: 15, fg: '#4a5480' });
+        }
+      }
+    };
+  }
+
+  // =====================================================
+  // BUS ON A SLOPE  (centre of gravity and toppling)
+  // =====================================================
+  function makeTopple(p) {
+    return {
+      kind: 'topple', p, t: 0, rev: false, ok: false, prog: 0,
+      pointer: noop, onWrong: noop, onHint: noop,
+      onReveal(ok) { this.rev = true; this.ok = ok; },
+      update(dt) {
+        this.t += dt;
+        if (this.rev) this.prog = Math.min(1, this.prog + dt / (p.topples ? 1.1 : 0.7));
+      },
+      draw(ctx) {
+        const th = p.th * Math.PI / 180, cos = Math.cos(th), sin = Math.sin(th);
+        const S = VH * 0.105;                                    // drawing units per metre
+        const Ox = 430, Oy = VH * 0.62;                          // middle of the bus's base, on the slope
+        const bx = (p.w / 2) * S;                                // downhill wheel contact (distance along slope)
+        sky(ctx);
+
+        // slope
+        const ex = cos * 1500, ey = sin * 1500;
+        ctx.fillStyle = '#7ccf6a'; ctx.beginPath();
+        ctx.moveTo(Ox - ex, Oy - ey); ctx.lineTo(Ox + ex, Oy + ey); ctx.lineTo(Ox + ex, Oy + ey + 2500); ctx.lineTo(Ox - ex, Oy - ey + 2500);
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = '#58b24a'; ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(Ox - ex, Oy - ey); ctx.lineTo(Ox + ex, Oy + ey); ctx.stroke();
+
+        // angle marker
+        const Px = Ox + 270 * cos, Py = Oy + 270 * sin;
+        ctx.strokeStyle = '#1b1f4b'; ctx.lineWidth = 2.5; ctx.setLineDash([6, 6]);
+        ctx.beginPath(); ctx.moveTo(Px, Py); ctx.lineTo(Px - 150, Py); ctx.stroke(); ctx.setLineDash([]);
+        ctx.beginPath(); ctx.arc(Px, Py, 80, Math.PI, Math.PI + th); ctx.stroke();
+        setFont(ctx, 20); ctx.fillStyle = '#1b1f4b'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+        ctx.fillText(`${p.th}°`, Px - 90, Py - 14);
+
+        // the bus (drawn in the slope's own tilted frame)
+        const falling = this.rev && p.topples;
+        const roll = falling ? ease(this.prog) * 1.15 : 0;
+        ctx.save();
+        ctx.translate(Ox, Oy); ctx.rotate(th);
+        if (falling) { ctx.translate(bx, 0); ctx.rotate(roll); ctx.translate(-bx, 0); }
+        else if (this.rev) ctx.translate(0, -Math.sin(this.prog * Math.PI) * 10);
+
+        // base (the wheels)
+        ctx.strokeStyle = '#ffd23f'; ctx.lineWidth = 7; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(-bx, 3); ctx.lineTo(bx, 3); ctx.stroke();
+
+        const bw = (p.w + 0.5) * S, H = 4.2 * S, wr = 0.34 * S, x0 = -bw / 2;
+        rr(ctx, x0, -H, bw, H - wr * 1.1, S * 0.25);
+        const body = ctx.createLinearGradient(0, -H, 0, 0); body.addColorStop(0, '#f04a45'); body.addColorStop(1, '#c62828');
+        ctx.fillStyle = body; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#7f1a17'; ctx.stroke();
+        ctx.fillStyle = '#ffd23f'; ctx.fillRect(x0 + 2, -H * 0.5, bw - 4, H * 0.045);     // stripe between decks
+
+        const wh = H * 0.17, wy = p.high ? -H * 0.76 : -H * 0.3, ww = bw * 0.17;
+        for (let k = 0; k < 4; k++) {                                                    // windows on both decks
+          [-H * 0.76, -H * 0.3].forEach(y => {
+            rr(ctx, x0 + bw * (0.09 + 0.225 * k), y - wh / 2, ww, wh, 5);
+            ctx.fillStyle = '#d6efff'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#7f1a17'; ctx.stroke();
+          });
+        }
+        for (let k = 0; k < 4; k++) {                                                    // passengers
+          const px = x0 + bw * (0.09 + 0.225 * k) + ww / 2, r = Math.min(wh, ww) * 0.5;
+          if (k === 1) Faces.draw(ctx, 0, px, wy, r);
+          else if (k === 2) Faces.draw(ctx, 1, px, wy, r);
+          else Faces.drawEmoji(ctx, k === 0 ? '😄' : '🥸', px, wy, r);
+        }
+        [-bx, bx].forEach(x => {                                                          // wheels
+          ctx.beginPath(); ctx.arc(x, -wr, wr, 0, Math.PI * 2); ctx.fillStyle = '#263238'; ctx.fill();
+          ctx.beginPath(); ctx.arc(x, -wr, wr * 0.45, 0, Math.PI * 2); ctx.fillStyle = '#b0bec5'; ctx.fill();
+        });
+
+        // centre of gravity target
+        const gy = -p.hg * S;
+        ctx.beginPath(); ctx.arc(0, gy, 15, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill();
+        ctx.lineWidth = 2.5; ctx.strokeStyle = '#1b1f4b'; ctx.stroke();
+        ctx.fillStyle = '#1b1f4b';
+        ctx.beginPath(); ctx.moveTo(0, gy); ctx.arc(0, gy, 15, 0, Math.PI / 2); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(0, gy); ctx.arc(0, gy, 15, Math.PI, Math.PI * 1.5); ctx.closePath(); ctx.fill();
+        ctx.restore();
+
+        if (!falling) {
+          // dashed line of action of the weight (straight down in the real world)
+          const Gx = Ox + p.hg * S * sin, Gy = Oy - p.hg * S * cos;
+          const Hy = Oy + p.hg * Math.tan(th) * sin * S;
+          const inside = !p.topples;
+          ctx.strokeStyle = '#1b1f4b'; ctx.lineWidth = 3; ctx.setLineDash([9, 7]);
+          ctx.beginPath(); ctx.moveTo(Gx, Gy); ctx.lineTo(Gx, Hy); ctx.stroke(); ctx.setLineDash([]);
+          arrow(ctx, Gx, Hy - 52, Gx, Hy - 2, '#1b1f4b', 3);
+          ctx.beginPath(); ctx.arc(Gx, Hy, 9, 0, Math.PI * 2);
+          ctx.fillStyle = this.rev ? (inside ? '#2bb673' : '#e53935') : '#fff'; ctx.fill();
+          ctx.lineWidth = 2.5; ctx.strokeStyle = '#1b1f4b'; ctx.stroke();
+          pill(ctx, 'weight', Gx + 54, Gy + (Hy - Gy) * 0.5, { size: 15 });
+        }
+        if (!falling) pill(ctx, 'CoG', Ox + p.hg * S * sin - 46, Oy - p.hg * S * cos - 26, { size: 15 });
+
+        if (this.rev) {
+          if (p.topples && this.prog > 0.6) pill(ctx, '💥 TOPPLED!', Ox + 120, Oy - 200, { size: 26, fg: '#fff', bg: '#e53935', border: '#fff' });
+          if (!p.topples) pill(ctx, '✅ STABLE!', Ox + 120, Oy - 230, { size: 26, fg: '#fff', bg: '#2bb673', border: '#fff' });
+        }
+        pill(ctx, 'yellow line = base (between the wheels)', VW / 2, 26, { size: 15, fg: '#4a5480' });
+      }
+    };
+  }
+
+  // =====================================================
+  // PIN THE CENTRE OF GRAVITY
+  // =====================================================
+  function makePin(p) {
+    const xs = p.pts.map(q => q[0]), ys = p.pts.map(q => q[1]);
+    const minx = Math.min(...xs), maxx = Math.max(...xs), miny = Math.min(...ys), maxy = Math.max(...ys);
+    const bw = maxx - minx, bh = maxy - miny;
+    const lay = () => {
+      const sc = Math.min(520 / bw, VH * 0.66 / bh);
+      return { sc, ox: (VW - bw * sc) / 2 - minx * sc, oy: (VH - bh * sc) / 2 + 14 - miny * sc };
+    };
+    const toScreen = (x, y, L) => [L.ox + x * L.sc, L.oy + y * L.sc];
+
+    return {
+      kind: 'pin', p, pin: null, drag: false, hint: false, rev: false, ok: false, t: 0,
+      update(dt) { this.t += dt; },
+      onWrong: noop,
+      onHint() { this.hint = true; },
+      onReveal(ok) { this.rev = true; this.ok = ok; this.drag = false; },
+      getPin() { return this.pin; },
+      pointer(kind, x, y) {
+        if (this.rev) return;
+        const L = lay();
+        if (kind === 'down') this.drag = true;
+        if (kind === 'up') { this.drag = false; return; }
+        if (this.drag) this.pin = { x: (clamp(x, 10, VW - 10) - L.ox) / L.sc, y: (clamp(y, 10, VH - 10) - L.oy) / L.sc };
+      },
+      draw(ctx) {
+        const L = lay();
+        const bg = ctx.createLinearGradient(0, 0, 0, VH);
+        bg.addColorStop(0, '#f6e7c8'); bg.addColorStop(1, '#ecd6a8');
+        ctx.fillStyle = bg; ctx.fillRect(0, 0, VW, VH);                                   // corkboard-ish
+
+        // the shape, with the player's face faintly printed on it
+        ctx.save();
+        ctx.beginPath();
+        p.pts.forEach((q, i) => { const [sx, sy] = toScreen(q[0], q[1], L); if (i) ctx.lineTo(sx, sy); else ctx.moveTo(sx, sy); });
+        ctx.closePath();
+        ctx.shadowColor = 'rgba(60,40,10,.35)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 6;
+        ctx.fillStyle = '#ffd966'; ctx.fill();
+        ctx.shadowColor = 'transparent';
+        ctx.clip();
+        const fc = Faces.canvas(p.pi);
+        if (fc) {
+          const s = Math.max(bw, bh) * L.sc * 1.05, [cx, cy] = toScreen((minx + maxx) / 2, (miny + maxy) / 2, L);
+          ctx.globalAlpha = 0.32; ctx.drawImage(fc, cx - s / 2, cy - s / 2, s, s); ctx.globalAlpha = 1;
+        }
+        ctx.restore();
+        ctx.beginPath();
+        p.pts.forEach((q, i) => { const [sx, sy] = toScreen(q[0], q[1], L); if (i) ctx.lineTo(sx, sy); else ctx.moveTo(sx, sy); });
+        ctx.closePath(); ctx.lineWidth = 4; ctx.strokeStyle = '#8a5a00'; ctx.lineJoin = 'round'; ctx.stroke();
+
+        if (this.hint || this.rev) {                                                      // helper lines
+          ctx.strokeStyle = '#6a4cff'; ctx.lineWidth = 2.5; ctx.setLineDash([8, 7]);
+          p.lines.forEach(([a, b]) => {
+            const [x0, y0] = toScreen(a[0], a[1], L), [x1, y1] = toScreen(b[0], b[1], L);
+            ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+          });
+          ctx.setLineDash([]);
+        }
+
+        if (this.rev) {                                                                   // true centre of gravity
+          const [cx, cy] = toScreen(p.centroid.x, p.centroid.y, L);
+          if (this.pin && !this.ok) {
+            const [px, py] = toScreen(this.pin.x, this.pin.y, L);
+            ctx.strokeStyle = '#e53935'; ctx.lineWidth = 3; ctx.setLineDash([6, 6]);
+            ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(cx, cy); ctx.stroke(); ctx.setLineDash([]);
+          }
+          const pulse = 1 + Math.sin(this.t * 6) * 0.08;
+          ctx.beginPath(); ctx.arc(cx, cy, 20 * pulse, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill();
+          ctx.lineWidth = 3; ctx.strokeStyle = '#1b1f4b'; ctx.stroke();
+          ctx.fillStyle = '#1b1f4b';
+          ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, 20 * pulse, 0, Math.PI / 2); ctx.closePath(); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, 20 * pulse, Math.PI, Math.PI * 1.5); ctx.closePath(); ctx.fill();
+          pill(ctx, 'CoG', cx + 44, cy - 30, { size: 17 });
+        }
+
+        if (this.pin) {                                                                   // the player's pin
+          const [px, py] = toScreen(this.pin.x, this.pin.y, L);
+          ctx.beginPath(); ctx.ellipse(px + 5, py + 6, 11, 5, 0, 0, Math.PI * 2); ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fill();
+          ctx.beginPath(); ctx.arc(px, py - 10, 14, 0, Math.PI * 2);
+          const g = ctx.createRadialGradient(px - 4, py - 15, 2, px, py - 10, 15); g.addColorStop(0, '#ff8a80'); g.addColorStop(1, '#c62828');
+          ctx.fillStyle = g; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#7f1a17'; ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(px, py - 1); ctx.lineTo(px, py + 5); ctx.strokeStyle = '#555'; ctx.lineWidth = 3; ctx.stroke();
+        } else {
+          pill(ctx, 'Tap or drag on the shape to place the pin 📍', VW / 2, 30, { size: 17 });
+        }
+        if (this.rev) pill(ctx, this.ok ? '🎯 BULLSEYE!' : 'Here is the real centre of gravity', VW / 2, 30, { size: 20, fg: '#fff', bg: this.ok ? '#2bb673' : '#6a4cff', border: '#fff' });
+      }
+    };
+  }
+
+  // ---------- public ----------
+  return {
+    setSize(unit, height) { U = unit; VH = height; },
+    width: VW,
+    create(d) {
+      switch (d.kind) {
+        case 'spanner': return makeSpanner(d);
+        case 'seesaw': return makeSeesaw(d);
+        case 'topple': return makeTopple(d);
+        case 'pin': return makePin(d);
+      }
+      throw new Error('Unknown scene: ' + d.kind);
+    }
+  };
+})();
+
+  </script>
+  <script>
+/* ===== effects.js ===== */
+/* effects.js
+   The silly bits: face balloons (tap to pop!), confetti, raining faces,
+   a giant party-hat face, funny banners and little synthesised sounds.
+   Everything draws on the full-screen <canvas id="fx"> that sits on top
+   of the page and ignores touches (so buttons still work). */
+
+const FX = (() => {
+  const cvs = document.getElementById('fx');
+  const ctx = cvs.getContext('2d');
+  const bannerEl = document.getElementById('banner');
+  let W = 0, H = 0, dpr = 1;
+  let balloons = [], confetti = [], rain = [], texts = [], bigFace = null;
+  let raf = 0, last = 0, muted = false, ac = null;
+
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+
+  const WIN_LINES = [
+    'Newton-tastic!', 'A moment of glory!', 'Perfectly balanced!', 'That’s the pivot-al answer!',
+    'Absolutely CoG-nificent!', 'Turning heads and turning moments!', 'Force × distance = FANTASTIC!',
+    'Physics party time!', 'Nailed it!', 'You’ve got the moves (and the moments)!'
+  ];
+  const STREAK_LINES = ['🔥 ON FIRE! 🔥', 'Unstoppable!', 'Moment Master mode!', 'Streak party!'];
+  const OOPS_LINES = ['Oof! Try again', 'Wobble wobble…', 'Not quite. Talk it over!', 'So close! Check the moments'];
+
+  // ---------- sizing ----------
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth; H = window.innerHeight;
+    cvs.width = Math.round(W * dpr); cvs.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // ---------- sound (Web Audio: made from simple tones, no files to load) ----------
+  function audio() {
+    if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { ac = null; } }
+    if (ac && ac.state === 'suspended') ac.resume();
+    return ac;
+  }
+  function tone(freq, t0, dur, type, vol, slideTo) {
+    const a = audio(); if (!a || muted) return;
+    const o = a.createOscillator(), g = a.createGain(), t = a.currentTime + t0;
+    o.type = type || 'triangle';
+    o.frequency.setValueAtTime(freq, t);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol || 0.15, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(a.destination);
+    o.start(t); o.stop(t + dur + 0.05);
+  }
+  function noise(dur, vol) {
+    const a = audio(); if (!a || muted) return;
+    const len = Math.floor(a.sampleRate * dur), buf = a.createBuffer(1, len, a.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const src = a.createBufferSource(), g = a.createGain();
+    g.gain.value = vol; src.buffer = buf; src.connect(g); g.connect(a.destination); src.start();
+  }
+  const sounds = {
+    win() { [523, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.09, 0.28, 'triangle', 0.16)); tone(300, 0.4, 0.4, 'sawtooth', 0.07, 700); },
+    lose() { [196, 185, 175].forEach((f, i) => tone(f, i * 0.22, 0.24, 'sawtooth', 0.09)); tone(165, 0.66, 0.7, 'sawtooth', 0.09, 110); },
+    buzz() { tone(150, 0, 0.22, 'square', 0.07); tone(120, 0.2, 0.25, 'square', 0.07); },
+    pop() { noise(0.09, 0.3); tone(700, 0, 0.08, 'square', 0.05, 200); },
+    click() { tone(660, 0, 0.06, 'triangle', 0.08); }
+  };
+
+  // ---------- things on screen ----------
+  function newBalloon(k, who) {
+    const r = rand(38, 62) * Math.min(1, W / 700 + 0.45);
+    return {
+      x: rand(r, W - r), baseX: 0, y: H + r * 1.5 + rand(0, 380), vy: rand(70, 130),
+      r, hue: Math.floor(rand(0, 360)), face: who == null ? k % 2 : (k % 3 === 0 ? who : k % 2),
+      phase: rand(0, 6.28), age: 0
+    };
+  }
+  function addConfetti(n, x, y, burst) {
+    for (let i = 0; i < n; i++) {
+      confetti.push({
+        x: x == null ? rand(0, W) : x, y: y == null ? rand(-H * 0.3, -10) : y,
+        vx: burst ? rand(-260, 260) : rand(-40, 40), vy: burst ? rand(-380, -60) : rand(120, 320),
+        w: rand(6, 12), h: rand(8, 16), rot: rand(0, 6.28), vr: rand(-8, 8),
+        color: burst && burst !== true ? burst : `hsl(${Math.floor(rand(0, 360))},90%,60%)`, life: 4
+      });
+    }
+  }
+  function addRain(n) {
+    for (let i = 0; i < n; i++) {
+      rain.push({ x: rand(0, W), y: rand(-H * 0.6, -40), vy: rand(160, 300), r: rand(20, 36), rot: rand(0, 6.28), vr: rand(-4, 4), face: i % 2 });
+    }
+  }
+
+  function drawBalloon(b) {
+    const rx = b.r * 0.98, ry = b.r * 1.18;
+    ctx.save();
+    ctx.translate(b.x, b.y);
+    ctx.rotate(Math.sin(b.phase + b.age * 1.5) * 0.08);
+    // string
+    ctx.strokeStyle = 'rgba(60,60,90,.55)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(0, ry); ctx.quadraticCurveTo(14, ry + 28, -8, ry + 62); ctx.stroke();
+    // balloon body
+    const g = ctx.createRadialGradient(-rx * 0.35, -ry * 0.4, rx * 0.1, 0, 0, ry * 1.1);
+    g.addColorStop(0, `hsl(${b.hue},95%,78%)`); g.addColorStop(1, `hsl(${b.hue},85%,52%)`);
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
+    // knot
+    ctx.beginPath(); ctx.moveTo(0, ry - 2); ctx.lineTo(-7, ry + 9); ctx.lineTo(7, ry + 9); ctx.closePath();
+    ctx.fillStyle = `hsl(${b.hue},85%,45%)`; ctx.fill();
+    // face printed on the balloon
+    Faces.draw(ctx, b.face, 0, -ry * 0.04, b.r * 0.76);
+    // shine
+    ctx.fillStyle = 'rgba(255,255,255,.55)';
+    ctx.beginPath(); ctx.ellipse(-rx * 0.62, -ry * 0.55, rx * 0.12, ry * 0.2, -0.5, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  function popBalloon(b, i) {
+    balloons.splice(i, 1);
+    addConfetti(22, b.x, b.y, `hsl(${b.hue},90%,58%)`);
+    texts.push({ x: b.x, y: b.y, t: 0, txt: pick(['POP!', 'BANG!', 'POP POP!', 'Splat!']) });
+    sounds.pop();
+    start();
+  }
+
+  // Tap or click a balloon to pop it.
+  window.addEventListener('pointerdown', e => {
+    audio();                                           // first touch unlocks sound on iPads/phones
+    for (let i = balloons.length - 1; i >= 0; i--) {
+      const b = balloons[i];
+      const dx = (e.clientX - b.x) / (b.r * 1.15), dy = (e.clientY - b.y) / (b.r * 1.35);
+      if (dx * dx + dy * dy <= 1) { popBalloon(b, i); break; }
+    }
+  }, true);
+
+  // ---------- animation loop (runs only while something is on screen) ----------
+  function frame(ts) {
+    const dt = Math.min(0.05, (ts - last) / 1000 || 0.016);
+    last = ts;
+    ctx.clearRect(0, 0, W, H);
+
+    rain = rain.filter(f => f.y < H + 60);
+    rain.forEach(f => {
+      f.y += f.vy * dt; f.rot += f.vr * dt;
+      Faces.draw(ctx, f.face, f.x, f.y, f.r, { rot: f.rot });
+    });
+
+    balloons = balloons.filter(b => b.y > -b.r * 3);
+    balloons.forEach(b => {
+      b.age += dt; b.y -= b.vy * dt;
+      b.x += Math.sin(b.phase + b.age * 1.5) * 18 * dt;
+      drawBalloon(b);
+    });
+
+    confetti = confetti.filter(c => c.life > 0 && c.y < H + 30);
+    confetti.forEach(c => {
+      c.vy += 420 * dt; c.x += c.vx * dt; c.y += c.vy * dt; c.rot += c.vr * dt; c.life -= dt;
+      ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.rot);
+      ctx.fillStyle = c.color; ctx.fillRect(-c.w / 2, -c.h / 2, c.w, c.h);
+      ctx.restore();
+    });
+
+    if (bigFace) {
+      bigFace.t += dt;
+      const t = bigFace.t, grow = Math.min(1, t / 0.45), out = t > 1.9 ? Math.max(0, 1 - (t - 1.9) / 0.5) : 1;
+      const back = 1 + 2.7 * Math.pow(grow - 1, 3) + 1.7 * Math.pow(grow - 1, 2);   // "easeOutBack": overshoots, then settles
+      const r = Math.min(W, H) * 0.17 * back * out;
+      if (out <= 0) bigFace = null;
+      else Faces.draw(ctx, bigFace.idx, W / 2, H * 0.34, r, { hat: true, rot: Math.sin(t * 7) * 0.18, ring: '#ffd23f' });
+    }
+
+    texts = texts.filter(x => x.t < 0.9);
+    texts.forEach(x => {
+      x.t += dt;
+      ctx.save(); ctx.globalAlpha = Math.max(0, 1 - x.t / 0.9);
+      ctx.font = '800 26px "Trebuchet MS", system-ui, sans-serif'; ctx.textAlign = 'center';
+      ctx.lineWidth = 5; ctx.strokeStyle = '#fff'; ctx.fillStyle = '#ff4f8b';
+      ctx.strokeText(x.txt, x.x, x.y - x.t * 60); ctx.fillText(x.txt, x.x, x.y - x.t * 60);
+      ctx.restore();
+    });
+
+    if (balloons.length || confetti.length || rain.length || texts.length || bigFace) raf = requestAnimationFrame(frame);
+    else { raf = 0; ctx.clearRect(0, 0, W, H); }
+  }
+  function start() { if (!raf) { last = performance.now(); raf = requestAnimationFrame(frame); } }
+
+  function banner(text, bad) {
+    bannerEl.textContent = text;
+    bannerEl.classList.toggle('bad', !!bad);
+    bannerEl.classList.remove('show'); void bannerEl.offsetWidth; bannerEl.classList.add('show');
+  }
+
+  // ---------- public ----------
+  return {
+    // level 1 = right answer, 2 = streak of 3+, 3 = end of game
+    celebrate(level, who) {
+      sounds.win();
+      const n = level >= 3 ? 30 : level === 2 ? 18 : 10;
+      for (let i = 0; i < n; i++) balloons.push(newBalloon(i, who));
+      addConfetti(level >= 3 ? 260 : level === 2 ? 190 : 110);
+      if (level >= 2) { addRain(level >= 3 ? 22 : 12); bigFace = { idx: who == null ? 0 : who, t: 0 }; }
+      banner(level >= 3 ? 'WHAT A SHOWDOWN!' : level === 2 ? pick(STREAK_LINES) : pick(WIN_LINES));
+      start();
+    },
+    wrong(final) {
+      if (final) { sounds.lose(); banner('So close! Read the working below', true); }
+      else { sounds.buzz(); banner(pick(OOPS_LINES), true); }
+      const el = document.getElementById('stage-wrap');
+      el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake');
+    },
+    click: () => sounds.click(),
+    setMuted(m) { muted = m; },
+    isMuted: () => muted,
+    unlock: audio,
+    clear() { balloons = []; confetti = []; rain = []; texts = []; bigFace = null; bannerEl.classList.remove('show'); ctx.clearRect(0, 0, W, H); }
+  };
+})();
+
+  </script>
+  <script>
+/* ===== game.js ===== */
+/* game.js
+   Runs the game: which screen is showing, which round we are on,
+   building the answer boxes, scoring, and calling the effects.
+   It uses the other files:  Faces (photos), Q (questions),
+   Scenes (pictures) and FX (celebrations). */
+
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+
+  // ---------- game state ----------
+  const G = {
+    mode: 'both', rounds: [], idx: 0, score: 0, streak: 0, bestStreak: 0, firstTry: 0,
+    q: null, attempts: 0, hintUsed: false, done: false, used: [], selected: null
+  };
+  let scene = null, dpr = 1, lastTs = 0;
+
+  // ---------- screens ----------
+  function show(name) {
+    ['setup', 'menu', 'game', 'end'].forEach(s => $('screen-' + s).classList.toggle('active', s === name));
+    window.scrollTo(0, 0);
+    if (name === 'game') resizeStage();
+    if (name !== 'end' && name !== 'game') FX.clear();
+  }
+
+  // ---------- the main canvas ----------
+  const stage = $('stage'), sctx = stage.getContext('2d');
+
+  function resizeStage() {
+    const wrap = $('stage-wrap');
+    const cssW = Math.max(300, wrap.clientWidth);
+    const U = cssW / Scenes.width;
+    const cssH = Math.round(cssW * (cssW < 640 ? 0.8 : 0.56));    // taller picture on phones
+    dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    stage.style.width = cssW + 'px'; stage.style.height = cssH + 'px';
+    stage.width = Math.round(cssW * dpr); stage.height = Math.round(cssH * dpr);
+    Scenes.setSize(U, cssH / U);
+    stage._U = U; stage._H = cssH / U;
+  }
+  window.addEventListener('resize', () => { if ($('screen-game').classList.contains('active')) resizeStage(); });
+
+  function frame(ts) {
+    const dt = Math.min(0.05, (ts - lastTs) / 1000 || 0.016);
+    lastTs = ts;
+    if (scene && $('screen-game').classList.contains('active')) {
+      const U = stage._U || 1;
+      scene.update(dt);
+      sctx.setTransform(dpr * U, 0, 0, dpr * U, 0, 0);
+      scene.draw(sctx);
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // pointer -> drawing coordinates (for dragging the pin)
+  function toScene(e) {
+    const r = stage.getBoundingClientRect();
+    return [(e.clientX - r.left) / r.width * Scenes.width, (e.clientY - r.top) / r.height * stage._H];
+  }
+  stage.addEventListener('pointerdown', e => {
+    if (!scene || scene.kind !== 'pin') return;
+    stage.setPointerCapture(e.pointerId);
+    const [x, y] = toScene(e); scene.pointer('down', x, y);
+  });
+  stage.addEventListener('pointermove', e => {
+    if (!scene || scene.kind !== 'pin') return;
+    const [x, y] = toScene(e); scene.pointer('move', x, y);
+  });
+  const endDrag = () => { if (scene && scene.kind === 'pin') scene.pointer('up', 0, 0); };
+  stage.addEventListener('pointerup', endDrag);
+  stage.addEventListener('pointercancel', endDrag);
+
+  // ---------- 1. photos ----------
+  function updateContinue() { $('btn-continue').disabled = !Faces.ready(); }
+  Faces.initSetup(updateContinue);
+
+  $('btn-cartoon').addEventListener('click', () => { Faces.useCartoons(); });
+  $('btn-continue').addEventListener('click', () => {
+    Faces.stopAll();
+    [0, 1].forEach(i => { $('menu-face-' + i).src = Faces.url(i); $('menu-name-' + i).textContent = Faces.name(i); });
+    show('menu');
+  });
+
+  // ---------- 2. choose a mode ----------
+  document.querySelectorAll('.mode').forEach(b => b.addEventListener('click', () => startGame(b.dataset.mode)));
+  $('btn-back-faces').addEventListener('click', () => show('setup'));
+
+  function buildRounds(mode) {
+    const seq = {
+      moments: ['moment', 'balance', 'direction', 'moment', 'balance', 'direction', 'balance', 'moment'],
+      cog: ['pin', 'pin', 'topple', 'pin', 'topple', 'pin', 'topple', 'pin'],
+      both: ['moment', 'balance', 'pin', 'direction', 'topple', 'balance', 'pin', 'direction', 'topple', 'pin']
+    }[mode];
+    const n = seq.length;
+    return seq.map((type, i) => {
+      const f = n > 1 ? i / (n - 1) : 0;
+      return {
+        type, tough: f >= 0.5,
+        tier: f < 0.34 ? 'easy' : f < 0.67 ? 'mid' : 'hard',
+        unknown: Math.random() < 0.5 ? 'd' : 'F'
+      };
+    });
+  }
+
+  function startGame(mode) {
+    FX.unlock(); FX.clear();
+    Object.assign(G, { mode, rounds: buildRounds(mode), idx: 0, score: 0, streak: 0, bestStreak: 0, firstTry: 0, used: [] });
+    show('game');
+    startRound();
+  }
+
+  // ---------- 3. a round ----------
+  function startRound() {
+    const spec = G.rounds[G.idx], pi = G.idx % 2;
+    const q = Q.make(spec, pi, G.used);
+    Object.assign(G, { q, attempts: 0, hintUsed: false, done: false, selected: null });
+
+    scene = Scenes.create(q.scene);
+    stage.style.touchAction = q.scene.kind === 'pin' ? 'none' : 'auto';   // so dragging the pin doesn't scroll the page
+
+    $('hud-round').textContent = `Round ${G.idx + 1} of ${G.rounds.length}`;
+    $('turn-img').src = Faces.url(pi);
+    $('turn-name').textContent = `${Faces.name(pi)}’s turn`;
+    $('turn-sub').textContent = `${Faces.name(1 - pi)} is the checker. Agree before you press Check!`;
+    $('title').textContent = q.title;
+    $('prompt').innerHTML = q.prompt;
+    $('talk-text').textContent = q.talk;
+    $('feedback').innerHTML = '';
+    $('btn-next').hidden = true;
+    $('btn-hint').hidden = false; $('btn-hint').disabled = false;
+    updateHud();
+    buildControls(q);
+    if (q.inputKind === 'number') $('ans').focus({ preventScroll: true });
+  }
+
+  function updateHud() {
+    $('hud-score').textContent = `⭐ ${G.score}`;
+    $('hud-streak').textContent = G.streak >= 2 ? `🔥 ${G.streak}` : '';
+  }
+
+  function buildControls(q) {
+    const c = $('controls');
+    c.innerHTML = '';
+    if (q.inputKind === 'number') {
+      const row = document.createElement('div'); row.className = 'answer-row';
+      const inp = document.createElement('input');
+      inp.id = 'ans'; inp.type = 'text'; inp.inputMode = 'decimal'; inp.autocomplete = 'off';
+      inp.placeholder = 'Type your answer'; inp.setAttribute('aria-label', 'Your answer');
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+      const u = document.createElement('span'); u.className = 'unit'; u.textContent = q.unit;
+      row.append(inp, u); c.append(row);
+    } else if (q.inputKind === 'choice') {
+      const row = document.createElement('div'); row.className = 'choices';
+      q.choices.forEach(ch => {
+        const b = document.createElement('button');
+        b.className = 'choice'; b.textContent = ch.label; b.setAttribute('aria-pressed', 'false');
+        b.addEventListener('click', () => {
+          if (G.done) return;
+          G.selected = ch.id; FX.click();
+          row.querySelectorAll('.choice').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+        });
+        row.append(b);
+      });
+      c.append(row);
+    }
+    const go = document.createElement('button');
+    go.id = 'btn-check'; go.className = 'btn primary big';
+    go.textContent = q.inputKind === 'pin' ? 'Check my pin 📍' : 'Check ✓';
+    go.addEventListener('click', submit);
+    c.append(go);
+  }
+
+  function getAnswer() {
+    const q = G.q;
+    if (q.inputKind === 'number') {
+      const v = parseFloat($('ans').value.replace(',', '.'));
+      return Number.isFinite(v) ? v : null;
+    }
+    if (q.inputKind === 'choice') return G.selected;
+    return scene.getPin();
+  }
+
+  function say(html, cls) { $('feedback').innerHTML = `<div class="fb ${cls}">${html}</div>`; }
+
+  function submit() {
+    if (G.done) return;
+    const ans = getAnswer();
+    if (ans === null) {
+      say({ number: 'Type a number first.', choice: 'Choose one of the options first.', pin: 'Tap the shape to place your pin first.' }[G.q.inputKind], 'warn');
+      return;
+    }
+    G.attempts++;
+    const res = G.q.check(ans);
+    if (res.ok) finishRound(true, ans);
+    else if (G.attempts >= 2) finishRound(false, ans);
+    else {
+      scene.onWrong(ans);
+      FX.wrong(false);
+      say(`${res.msg} <b>One more go!</b>`, 'warn');
+    }
+  }
+
+  function finishRound(ok, ans) {
+    G.done = true;
+    let html = '';
+    if (ok) {
+      let pts = G.attempts === 1 ? 100 : 50;
+      if (G.hintUsed) pts -= 25;
+      pts = Math.max(pts, 10);
+      G.streak++; G.bestStreak = Math.max(G.bestStreak, G.streak);
+      if (G.attempts === 1) G.firstTry++;
+      const bonus = Math.min(50, (G.streak - 1) * 10);
+      G.score += pts + bonus;
+      html = `<div class="fb good"><b>Correct!</b> +${pts + bonus} points${bonus ? ` (streak bonus +${bonus})` : ''}</div>`;
+      FX.celebrate(G.streak >= 3 ? 2 : 1, G.idx % 2);
+    } else {
+      G.streak = 0;
+      html = '<div class="fb bad"><b>Not this time.</b> Here is how it works:</div>';
+      FX.wrong(true);
+    }
+    scene.onReveal(ok, ans);
+    $('feedback').innerHTML = html + `<div class="explain">${G.q.explain}</div>`;
+    updateHud();
+
+    $('controls').querySelectorAll('input,button').forEach(el => { el.disabled = true; });
+    $('btn-hint').hidden = true;
+    $('btn-next').hidden = false;
+    $('btn-next').textContent = G.idx + 1 >= G.rounds.length ? 'See results 🏁' : 'Next round ▶';
+    $('btn-next').focus({ preventScroll: true });
+  }
+
+  $('btn-hint').addEventListener('click', () => {
+    if (G.done) return;
+    if (!G.hintUsed) { G.hintUsed = true; }
+    scene.onHint();
+    const old = $('feedback').innerHTML;
+    $('feedback').innerHTML = old + `<div class="fb hint">💡 ${G.q.hint} <small>(this round’s points are 25 lower)</small></div>`;
+  });
+
+  $('btn-next').addEventListener('click', () => {
+    FX.clear();
+    G.idx++;
+    if (G.idx >= G.rounds.length) endGame(); else startRound();
+  });
+
+  $('btn-mute').addEventListener('click', () => {
+    const m = !FX.isMuted(); FX.setMuted(m);
+    $('btn-mute').textContent = m ? '🔇' : '🔊';
+    $('btn-mute').setAttribute('aria-label', m ? 'Sound off' : 'Sound on');
+  });
+  $('btn-menu').addEventListener('click', () => {
+    if (window.confirm('Leave this game and go back to the menu?')) { FX.clear(); show('menu'); }
+  });
+
+  // ---------- 4. results ----------
+  function endGame() {
+    const n = G.rounds.length, pct = G.firstTry / n;
+    const title = pct >= 0.9 ? '🏆 Moment Master' : pct >= 0.7 ? '⭐ Balance Boss' : pct >= 0.5 ? '🙂 Turning-Point Hero' : '🌱 Pivot Apprentice';
+    [0, 1].forEach(i => { $('end-face-' + i).src = Faces.url(i); $('end-name-' + i).textContent = Faces.name(i); });
+    $('end-title').textContent = title;
+    $('end-score').textContent = G.score;
+    $('end-first').textContent = `${G.firstTry} of ${n}`;
+    $('end-streak').textContent = G.bestStreak;
+    show('end');
+    FX.celebrate(3, 0);
+  }
+  $('btn-again').addEventListener('click', () => { FX.clear(); startGame(G.mode); });
+  $('btn-other').addEventListener('click', () => { FX.clear(); show('menu'); });
+  $('btn-newfaces').addEventListener('click', () => { FX.clear(); show('setup'); });
+
+  show('setup');
+})();
+
+  </script>
+</body>
+</html>
